@@ -16,10 +16,13 @@ class DetailViewModel @Inject constructor(
 ) : ViewModel() {
     private val _pokemon: MutableStateFlow<Pokemon?> = MutableStateFlow(null)
     val pokemon: StateFlow<Pokemon?> = _pokemon
+    private var lastLoadedName: String? = null
 
     fun load(name: String) {
         viewModelScope.launch {
+            if (lastLoadedName == name && _pokemon.value != null) return@launch
             _pokemon.value = getDetail(name)
+            lastLoadedName = name
         }
     }
 }
