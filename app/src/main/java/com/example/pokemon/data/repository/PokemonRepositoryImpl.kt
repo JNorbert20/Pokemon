@@ -17,12 +17,14 @@ class PokemonRepositoryImpl @Inject constructor(
 
     override suspend fun getPokemonsByType(typeName: String): List<Pokemon> =
         api.getTypeDetail(typeName).pokemon.map { slot ->
+            val name = slot.pokemon.name
             Pokemon(
-                name = slot.pokemon.name,
+                name = name,
                 imageUrl = null,
                 weight = null,
                 height = null,
-                type = typeName
+                type = typeName,
+                isCaught = caughtDao.isCaught(name)
             )
         }
 
@@ -30,7 +32,15 @@ class PokemonRepositoryImpl @Inject constructor(
         api.getAllPokemon().results
             .map { it.name }
             .filter { it.contains(query.trim(), ignoreCase = true) }
-            .map { name -> Pokemon(name = name, imageUrl = null, weight = null, height = null) }
+            .map { name ->
+                Pokemon(
+                    name = name,
+                    imageUrl = null,
+                    weight = null,
+                    height = null,
+                    isCaught = caughtDao.isCaught(name)
+                )
+            }
 
     override suspend fun getPokemonDetail(name: String): Pokemon {
         val dto = api.getPokemonDetail(name)

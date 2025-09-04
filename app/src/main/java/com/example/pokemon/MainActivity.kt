@@ -79,6 +79,7 @@ fun TypesDropdown(modifier: Modifier = Modifier, vm: MainViewModel, onSelectPoke
     val types = vm.types
     val byType = vm.pokemonByType
     val searchResults = vm.searchResults
+    val showCaughtOnly = remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf("") }
     var query by remember { mutableStateOf("") }
@@ -120,8 +121,13 @@ fun TypesDropdown(modifier: Modifier = Modifier, vm: MainViewModel, onSelectPoke
                 .padding(top = 8.dp)
         )
 
+        androidx.compose.material3.Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            androidx.compose.material3.Checkbox(checked = showCaughtOnly.value, onCheckedChange = { showCaughtOnly.value = it })
+            Text(text = "Only show caught Pokemon")
+        }
+
         Text(text = "By type:")
-        byType.value.forEach { p ->
+        (if (showCaughtOnly.value) byType.value.filter { it.isCaught } else byType.value).forEach { p ->
             val borderColor = if (p.isCaught) androidx.compose.ui.graphics.Color(0xFF2E7D32) else androidx.compose.ui.graphics.Color.Transparent
             androidx.compose.material3.Card(
                 border = androidx.compose.foundation.BorderStroke(2.dp, borderColor),
@@ -136,7 +142,7 @@ fun TypesDropdown(modifier: Modifier = Modifier, vm: MainViewModel, onSelectPoke
             }
         }
         Text(text = "Search results:")
-        searchResults.value.forEach { p ->
+        (if (showCaughtOnly.value) searchResults.value.filter { it.isCaught } else searchResults.value).forEach { p ->
             val borderColor = if (p.isCaught) androidx.compose.ui.graphics.Color(0xFF2E7D32) else androidx.compose.ui.graphics.Color.Transparent
             androidx.compose.material3.Card(
                 border = androidx.compose.foundation.BorderStroke(2.dp, borderColor)
