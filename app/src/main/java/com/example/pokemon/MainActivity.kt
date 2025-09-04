@@ -122,11 +122,32 @@ fun TypesDropdown(modifier: Modifier = Modifier, vm: MainViewModel, onSelectPoke
 
         Text(text = "By type:")
         byType.value.forEach { p ->
-            androidx.compose.material3.TextButton(onClick = { onSelectPokemon(p.name) }) { Text(p.name) }
+            val borderColor = if (p.isCaught) androidx.compose.ui.graphics.Color(0xFF2E7D32) else androidx.compose.ui.graphics.Color.Transparent
+            androidx.compose.material3.Card(
+                border = androidx.compose.foundation.BorderStroke(2.dp, borderColor),
+                modifier = Modifier
+            ) {
+                androidx.compose.material3.Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.material3.TextButton(onClick = { onSelectPokemon(p.name) }) { Text(p.name) }
+                    androidx.compose.material3.Button(onClick = { vm.toggleCatch(p.name) }) {
+                        Text(if (p.isCaught) "Release" else "Catch")
+                    }
+                }
+            }
         }
         Text(text = "Search results:")
         searchResults.value.forEach { p ->
-            androidx.compose.material3.TextButton(onClick = { onSelectPokemon(p.name) }) { Text(p.name) }
+            val borderColor = if (p.isCaught) androidx.compose.ui.graphics.Color(0xFF2E7D32) else androidx.compose.ui.graphics.Color.Transparent
+            androidx.compose.material3.Card(
+                border = androidx.compose.foundation.BorderStroke(2.dp, borderColor)
+            ) {
+                androidx.compose.material3.Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.material3.TextButton(onClick = { onSelectPokemon(p.name) }) { Text(p.name) }
+                    androidx.compose.material3.Button(onClick = { vm.toggleCatch(p.name) }) {
+                        Text(if (p.isCaught) "Release" else "Catch")
+                    }
+                }
+            }
         }
     }
 }
