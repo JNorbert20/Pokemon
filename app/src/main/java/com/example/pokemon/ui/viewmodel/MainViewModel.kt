@@ -31,25 +31,43 @@ class MainViewModel @Inject constructor(
     private var typesLoaded: Boolean = false
     private var lastTypeRequested: String? = null
 
+    private val _loading: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    val loading: StateFlow<Boolean> = _loading
+
     fun loadTypes() {
         viewModelScope.launch {
             if (typesLoaded) return@launch
-            _types.value = getTypes()
-            typesLoaded = true
+            _loading.value = true
+            try {
+                _types.value = getTypes()
+                typesLoaded = true
+            } finally {
+                _loading.value = false
+            }
         }
     }
 
     fun loadPokemonsForType(typeName: String) {
         viewModelScope.launch {
             if (lastTypeRequested == typeName && _pokemonByType.value.isNotEmpty()) return@launch
-            _pokemonByType.value = getPokemonsByType(typeName)
-            lastTypeRequested = typeName
+            _loading.value = true
+            try {
+                _pokemonByType.value = getPokemonsByType(typeName)
+                lastTypeRequested = typeName
+            } finally {
+                _loading.value = false
+            }
         }
     }
 
     fun search(query: String) {
         viewModelScope.launch {
-            _searchResults.value = searchPokemons(query)
+            _loading.value = true
+            try {
+                _searchResults.value = searchPokemons(query)
+            } finally {
+                _loading.value = false
+            }
         }
     }
 

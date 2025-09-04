@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -99,12 +100,16 @@ fun TypesDropdown(modifier: Modifier = Modifier, vm: MainViewModel, onSelectPoke
     val types = vm.types
     val byType = vm.pokemonByType
     val searchResults = vm.searchResults
+    val loading = vm.loading
     val showCaughtOnly = remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf("") }
     var query by remember { mutableStateOf("") }
 
     Column(modifier = modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (loading.value) {
+            CircularProgressIndicator()
+        }
         Text(text = "Pokemon Types")
         ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
             TextField(
