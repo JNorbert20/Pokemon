@@ -4,36 +4,129 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.menuAnchor
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.pokemon.ui.theme.PokemonTheme
+import com.example.pokemon.ui.viewmodel.MainViewModel
+import dagger.hilt.android.AndroidEntryPoint
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.pokemon.ui.screen.detail.PokemonDetailScreen
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.pokemon.ui.viewmodel.DetailViewModel
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private val viewModel: MainViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             PokemonTheme {
+                val navController = rememberNavController()
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
+                    NavHost(
+                        navController = navController,
+                        startDestination = "home",
                         modifier = Modifier.padding(innerPadding)
-                    )
+                    ) {
+                        composable("home") {
+                            TypesDropdown(
+                                vm = viewModel,
+                                onSelectPokemon = { name -> navController.navigate("detail/$name") }
+                            )
+                        }
+                        composable("detail/{name}") { backStackEntry ->
+                            val name = backStackEntry.arguments?.getString("name").orEmpty()
+                            val dvm: DetailViewModel = hiltViewModel()
+                            LaunchedEffect(name) { if (name.isNotEmpty()) dvm.load(name) }
+                            val p = dvm.pokemon
+                            p.value?.let { PokemonDetailScreen(it) }
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
+fun TypesDropdown(modifier: Modifier = Modifier, vm: MainViewModel, onSelectPokemon: (String) -> Unit) {
+    LaunchedEffect(Unit) { vm.loadTypes() }
+    val types = vm.types
+    val byType = vm.pokemonByType
+    val searchResults = vm.searchResults
+    var expanded by remember { mutableStateOf(false) }
+    var selected by remember { mutableStateOf("") }
+    var query by remember { mutableStateOf("") }
+
+    Column(modifier = modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(text = "Pokemon Types")
+        ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+            TextField(
+                value = selected,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Select…") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier.menuAnchor()
+            )
+            androidx.compose.material3.ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                types.value.forEach { type ->
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text(type.name) },
+                        onClick = {
+                            selected = type.name
+                            expanded = false
+                            vm.loadPokemonsForType(type.name)
+                        }
+                    )
+                }
+            }
+        }
+
+        OutlinedTextField(
+            value = query,
+            onValueChange = {
+                query = it
+                vm.search(it)
+            },
+            label = { Text("Search all Pokémon by name") },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 8.dp)
+        )
+
+        Text(text = "By type:")
+        byType.value.forEach { p ->
+            androidx.compose.material3.TextButton(onClick = { onSelectPokemon(p.name) }) { Text(p.name) }
+        }
+        Text(text = "Search results:")
+        searchResults.value.forEach { p ->
+            androidx.compose.material3.TextButton(onClick = { onSelectPokemon(p.name) }) { Text(p.name) }
+        }
+    }
 }

@@ -1,6 +1,10 @@
 package com.example.pokemon.data.local.entity
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "caught_pokemon")
 data class CaughtPokemonEntity(
-    val name: String
+    @PrimaryKey val name: String
 )
 

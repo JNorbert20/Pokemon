@@ -6,6 +6,7 @@ data class Pokemon(
     val weight: Int?,
     val height: Int?,
     val abilities: List<Ability> = emptyList(),
-    val isCaught: Boolean = false
+    val isCaught: Boolean = false,
+    val type: String? = null
 )
 
