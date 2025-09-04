@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -84,7 +85,7 @@ class MainActivity : ComponentActivity() {
                             val dvm: DetailViewModel = hiltViewModel()
                             LaunchedEffect(name) { if (name.isNotEmpty()) dvm.load(name) }
                             val p = dvm.pokemon
-                            p.value?.let { PokemonDetailScreen(it) }
+                            p.value?.let { PokemonDetailScreen(it) { caughtName -> viewModel.toggleCatch(caughtName); dvm.load(caughtName) } }
                         }
                     }
                 }
@@ -101,6 +102,7 @@ fun TypesDropdown(modifier: Modifier = Modifier, vm: MainViewModel, onSelectPoke
     val byType = vm.pokemonByType
     val searchResults = vm.searchResults
     val loading = vm.loading
+    val error = vm.error
     val showCaughtOnly = remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf("") }
@@ -109,6 +111,9 @@ fun TypesDropdown(modifier: Modifier = Modifier, vm: MainViewModel, onSelectPoke
     Column(modifier = modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (loading.value) {
             CircularProgressIndicator()
+        }
+        error.value?.let { msg ->
+            androidx.compose.material3.AssistChip(onClick = { /* could retry here if desired */ }, label = { Text(msg) })
         }
         Text(text = "Pokemon Types")
         ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
@@ -146,19 +151,23 @@ fun TypesDropdown(modifier: Modifier = Modifier, vm: MainViewModel, onSelectPoke
                 .padding(top = 8.dp)
         )
 
-        androidx.compose.material3.Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             androidx.compose.material3.Checkbox(checked = showCaughtOnly.value, onCheckedChange = { showCaughtOnly.value = it })
             Text(text = "Only show caught Pokemon")
         }
 
         Text(text = "By type:")
-        (if (showCaughtOnly.value) byType.value.filter { it.isCaught } else byType.value).forEach { p ->
+        val byTypeList = (if (showCaughtOnly.value) byType.value.filter { it.isCaught } else byType.value)
+        if (byTypeList.isEmpty() && !loading.value) {
+            Text("No Pokémon for this type.")
+        }
+        byTypeList.forEach { p ->
             val borderColor = if (p.isCaught) androidx.compose.ui.graphics.Color(0xFF2E7D32) else androidx.compose.ui.graphics.Color.Transparent
             androidx.compose.material3.Card(
                 border = androidx.compose.foundation.BorderStroke(2.dp, borderColor),
                 modifier = Modifier
             ) {
-                androidx.compose.material3.Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     androidx.compose.material3.TextButton(onClick = { onSelectPokemon(p.name) }) { Text(p.name) }
                     androidx.compose.material3.Button(onClick = { vm.toggleCatch(p.name) }) {
                         Text(if (p.isCaught) "Release" else "Catch")
@@ -167,12 +176,16 @@ fun TypesDropdown(modifier: Modifier = Modifier, vm: MainViewModel, onSelectPoke
             }
         }
         Text(text = "Search results:")
-        (if (showCaughtOnly.value) searchResults.value.filter { it.isCaught } else searchResults.value).forEach { p ->
+        val searchList = (if (showCaughtOnly.value) searchResults.value.filter { it.isCaught } else searchResults.value)
+        if (searchList.isEmpty() && query.isNotBlank() && !loading.value) {
+            Text("No Pokémon match your search.")
+        }
+        searchList.forEach { p ->
             val borderColor = if (p.isCaught) androidx.compose.ui.graphics.Color(0xFF2E7D32) else androidx.compose.ui.graphics.Color.Transparent
             androidx.compose.material3.Card(
                 border = androidx.compose.foundation.BorderStroke(2.dp, borderColor)
             ) {
-                androidx.compose.material3.Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     androidx.compose.material3.TextButton(onClick = { onSelectPokemon(p.name) }) { Text(p.name) }
                     androidx.compose.material3.Button(onClick = { vm.toggleCatch(p.name) }) {
                         Text(if (p.isCaught) "Release" else "Catch")

@@ -19,7 +19,7 @@ class MainViewModel @Inject constructor(
     private val getTypes: GetTypesUseCase,
     private val getPokemonsByType: GetPokemonsByTypeUseCase,
     private val searchPokemons: SearchPokemonsUseCase,
-    private val toggleCatch: ToggleCatchUseCase
+    private val toggleCatchUseCase: ToggleCatchUseCase
 ) : ViewModel() {
     private val _types: MutableStateFlow<List<PokemonType>> = MutableStateFlow(emptyList())
     val types: StateFlow<List<PokemonType>> = _types
@@ -33,6 +33,8 @@ class MainViewModel @Inject constructor(
 
     private val _loading: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading
+    private val _error: MutableStateFlow<String?> = MutableStateFlow(null)
+    val error: StateFlow<String?> = _error
 
     fun loadTypes() {
         viewModelScope.launch {
@@ -41,6 +43,7 @@ class MainViewModel @Inject constructor(
             try {
                 _types.value = getTypes()
                 typesLoaded = true
+                _error.value = null
             } finally {
                 _loading.value = false
             }
@@ -54,6 +57,9 @@ class MainViewModel @Inject constructor(
             try {
                 _pokemonByType.value = getPokemonsByType(typeName)
                 lastTypeRequested = typeName
+                _error.value = null
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Failed to load pokemons for type"
             } finally {
                 _loading.value = false
             }
@@ -65,6 +71,9 @@ class MainViewModel @Inject constructor(
             _loading.value = true
             try {
                 _searchResults.value = searchPokemons(query)
+                _error.value = null
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Search failed"
             } finally {
                 _loading.value = false
             }
@@ -73,7 +82,7 @@ class MainViewModel @Inject constructor(
 
     fun toggleCatch(name: String) {
         viewModelScope.launch {
-            val nowCaught = try { toggleCatch(name) } catch (e: Exception) { false }
+            val nowCaught = try { toggleCatchUseCase(name) } catch (e: Exception) { false }
             _pokemonByType.value = _pokemonByType.value.map { if (it.name == name) it.copy(isCaught = nowCaught) else it }
             _searchResults.value = _searchResults.value.map { if (it.name == name) it.copy(isCaught = nowCaught) else it }
         }
