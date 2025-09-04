@@ -9,30 +9,48 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.menuAnchor
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.DrawerState
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
+import kotlinx.coroutines.launch
 import com.example.pokemon.ui.theme.PokemonTheme
 import com.example.pokemon.ui.viewmodel.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -53,6 +71,19 @@ class MainActivity : ComponentActivity() {
         setContent {
             PokemonTheme {
                 val navController = rememberNavController()
+                val drawerState: DrawerState = rememberDrawerState(DrawerValue.Closed)
+                val scope = rememberCoroutineScope()
+                ModalNavigationDrawer(
+                    drawerState = drawerState,
+                    drawerContent = {
+                        Column(modifier = Modifier
+                            .fillMaxHeight()
+                            .padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Text(text = "PokeAPI Documentation", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                        }
+                    },
+                    scrimColor = Color(0x99000000)
+                ) {
                 Scaffold(
                     topBar = {
                         TopAppBar(
@@ -62,6 +93,10 @@ class MainActivity : ComponentActivity() {
                                 if (canPop) {
                                     IconButton(onClick = { navController.popBackStack() }) {
                                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                                    }
+                                } else {
+                                    IconButton(onClick = { scope.launch { if (drawerState.isClosed) drawerState.open() else drawerState.close() } }) {
+                                        Icon(Icons.Default.Menu, contentDescription = "Menu")
                                     }
                                 }
                             }
@@ -89,6 +124,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+                }
             }
         }
     }
@@ -98,21 +134,21 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun TypesDropdown(modifier: Modifier = Modifier, vm: MainViewModel, onSelectPokemon: (String) -> Unit) {
     LaunchedEffect(Unit) { vm.loadTypes() }
-    val types = vm.types
-    val byType = vm.pokemonByType
-    val searchResults = vm.searchResults
-    val loading = vm.loading
-    val error = vm.error
+    val types by vm.types.collectAsState(emptyList())
+    val byType by vm.pokemonByType.collectAsState(emptyList())
+    val searchResults by vm.searchResults.collectAsState(emptyList())
+    val loading by vm.loading.collectAsState(false)
+    val error by vm.error.collectAsState(null)
     val showCaughtOnly = remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf("") }
     var query by remember { mutableStateOf("") }
 
     Column(modifier = modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (loading.value) {
+        if (loading) {
             CircularProgressIndicator()
         }
-        error.value?.let { msg ->
+        error?.let { msg ->
             androidx.compose.material3.AssistChip(onClick = { /* could retry here if desired */ }, label = { Text(msg) })
         }
         Text(text = "Pokemon Types")
@@ -122,11 +158,10 @@ fun TypesDropdown(modifier: Modifier = Modifier, vm: MainViewModel, onSelectPoke
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Select…") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                modifier = Modifier.menuAnchor()
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
             )
             androidx.compose.material3.ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                types.value.forEach { type ->
+                types.forEach { type ->
                     androidx.compose.material3.DropdownMenuItem(
                         text = { Text(type.name) },
                         onClick = {
@@ -157,41 +192,82 @@ fun TypesDropdown(modifier: Modifier = Modifier, vm: MainViewModel, onSelectPoke
         }
 
         Text(text = "By type:")
-        val byTypeList = (if (showCaughtOnly.value) byType.value.filter { it.isCaught } else byType.value)
-        if (byTypeList.isEmpty() && !loading.value) {
+        // Header row
+        Row(modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp, bottom = 4.dp)) {
+            Text("Name", modifier = Modifier.weight(0.5f))
+            Text("Type", modifier = Modifier.weight(0.3f))
+            Text("Status", modifier = Modifier.weight(0.3f))
+            Text(" ", modifier = Modifier.weight(0.3f))
+        }
+        val byTypeList = (if (showCaughtOnly.value) byType.filter { it.isCaught } else byType)
+        if (byTypeList.isEmpty() && !loading) {
             Text("No Pokémon for this type.")
         }
         byTypeList.forEach { p ->
             val borderColor = if (p.isCaught) androidx.compose.ui.graphics.Color(0xFF2E7D32) else androidx.compose.ui.graphics.Color.Transparent
             androidx.compose.material3.Card(
                 border = androidx.compose.foundation.BorderStroke(2.dp, borderColor),
-                modifier = Modifier
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD)),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    androidx.compose.material3.TextButton(onClick = { onSelectPokemon(p.name) }) { Text(p.name) }
-                    androidx.compose.material3.Button(onClick = { vm.toggleCatch(p.name) }) {
+                Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.TextButton(onClick = { onSelectPokemon(p.name) }, modifier = Modifier.weight(0.5f)) { Text(p.name) }
+                    Text(text = p.type ?: "-", modifier = Modifier.weight(0.3f))
+                    Text(text = if (p.isCaught) "Caught" else "-", modifier = Modifier.weight(0.3f))
+                    val btnColor = if (p.isCaught) Color(0xFFFFD54F) else Color(0xFF1976D2)
+                    val contentColor = if (p.isCaught) Color.Black else Color.White
+                    androidx.compose.material3.Button(
+                        onClick = { vm.toggleCatch(p.name) },
+                        colors = ButtonDefaults.buttonColors(containerColor = btnColor, contentColor = contentColor),
+                        modifier = Modifier.weight(0.3f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
                         Text(if (p.isCaught) "Release" else "Catch")
                     }
                 }
             }
         }
         Text(text = "Search results:")
-        val searchList = (if (showCaughtOnly.value) searchResults.value.filter { it.isCaught } else searchResults.value)
-        if (searchList.isEmpty() && query.isNotBlank() && !loading.value) {
+        val searchList = (if (showCaughtOnly.value) searchResults.filter { it.isCaught } else searchResults)
+        if (searchList.isEmpty() && query.isNotBlank() && !loading) {
             Text("No Pokémon match your search.")
         }
         searchList.forEach { p ->
             val borderColor = if (p.isCaught) androidx.compose.ui.graphics.Color(0xFF2E7D32) else androidx.compose.ui.graphics.Color.Transparent
             androidx.compose.material3.Card(
-                border = androidx.compose.foundation.BorderStroke(2.dp, borderColor)
+                border = androidx.compose.foundation.BorderStroke(2.dp, borderColor),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD)),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    androidx.compose.material3.TextButton(onClick = { onSelectPokemon(p.name) }) { Text(p.name) }
-                    androidx.compose.material3.Button(onClick = { vm.toggleCatch(p.name) }) {
+                Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.TextButton(onClick = { onSelectPokemon(p.name) }, modifier = Modifier.weight(0.5f)) { Text(p.name) }
+                    Text(text = "-", modifier = Modifier.weight(0.3f))
+                    Text(text = if (p.isCaught) "Caught" else "-", modifier = Modifier.weight(0.3f))
+                    val btnColor = if (p.isCaught) Color(0xFFFFD54F) else Color(0xFF1976D2)
+                    val contentColor = if (p.isCaught) Color.Black else Color.White
+                    androidx.compose.material3.Button(
+                        onClick = { vm.toggleCatch(p.name) },
+                        colors = ButtonDefaults.buttonColors(containerColor = btnColor, contentColor = contentColor),
+                        modifier = Modifier.weight(0.3f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
                         Text(if (p.isCaught) "Release" else "Catch")
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+fun ExposedDropdownMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    TODO("Not yet implemented")
 }
